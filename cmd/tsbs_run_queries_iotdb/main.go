@@ -96,6 +96,10 @@ func (p *processor) Init(workerNumber int) {
 		errMsg = errMsg + fmt.Sprintf("timeout setting: %d ms", timeoutInMs)
 		log.Fatal(errMsg)
 	}
+	_, err := p.session.ExecuteStatement("flush")
+	if err != nil {
+		log.Fatal(fmt.Sprintf("flush meets error: %v\n", err))
+	}
 }
 
 func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
@@ -117,7 +121,7 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 			device := strings.Join(splits[:len(splits)-1], ".")
 			measurement := splits[len(splits)-1]
 			dataSet, err = p.session.ExecuteGroupByQueryIntervalQuery(&db, device, measurement,
-				common.TAggregationType_MAX_VALUE, 2,
+				common.TAggregationType_MAX_VALUE, 1,
 				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs)
 
 			if err != nil {
