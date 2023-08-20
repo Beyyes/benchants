@@ -73,7 +73,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 		for device, values := range batch.m {
 
 			db := strings.Split(device, ".")[0]
-			fullDevice := "root." + device
+			fullDevice := "root.sg." + device
 
 			for _, value := range values {
 				splits := strings.Split(value, ",")
