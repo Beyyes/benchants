@@ -256,11 +256,5 @@ func (p *processor) Close(_ bool) {
 			tablet.Reset()
 		}
 	}
-
-	_, err := p.session.ExecuteStatement("flush")
-	if err != nil {
-		fatal("flush meets error: %v\n", err)
-	}
-
 	defer p.session.Close()
 }
