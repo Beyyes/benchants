@@ -73,7 +73,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 		for device, values := range batch.m {
 
 			db := strings.Split(device, ".")[0]
-			fullDevice := "root.sg." + device
+			fullDevice := "root." + device
 
 			for _, value := range values {
 				splits := strings.Split(value, ",")
@@ -256,5 +256,11 @@ func (p *processor) Close(_ bool) {
 			tablet.Reset()
 		}
 	}
+
+	_, err := p.session.ExecuteStatement("flush")
+	if err != nil {
+		fatal("flush meets error: %v\n", err)
+	}
+
 	defer p.session.Close()
 }

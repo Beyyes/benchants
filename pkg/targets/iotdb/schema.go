@@ -35,7 +35,7 @@ var (
 	diskFields = []string{
 		"total",
 		"free",
-		"used",
+		"usage",
 		"used_percent",
 		"inodes_total",
 		"inodes_free",
@@ -54,7 +54,7 @@ var (
 	memFields = []string{
 		"total",
 		"available",
-		"used",
+		"usage",
 		"free",
 		"cached",
 		"buffered",
