@@ -20,11 +20,64 @@ const defaultBufSize = 4096
 
 var hostNameMap = make(map[string]bool)
 
+// serialize iot
 func (s *Serializer) Serialize(p *data.Point, w io.Writer) error {
+	buf := make([]byte, 0, defaultBufSize)
+	truckName := "unknown"
+	for i, v := range p.TagValues() {
+		if keyStr := string(p.TagKeys()[i]); keyStr == "name" {
+			if v == nil {
+				truckName = "truck_null"
+			} else {
+				truckName = v.(string)
+			}
+		}
+	}
+
+	exist, _ := hostNameMap[string(p.MeasurementName())+"."+truckName]
+	if !exist {
+		hostNameMap[string(p.MeasurementName())+"."+truckName] = true
+		buf = append(buf, []byte(fmt.Sprintf("0,%s,%s,tag", p.MeasurementName(), truckName))...)
+		for i, v := range p.TagValues() {
+			keyStr := p.TagKeys()[i]
+			valueInStrByte, datatype := IotdbFormat(v)
+			if datatype == client.TEXT {
+				tagStr := fmt.Sprintf(",'%s'='%s'", keyStr, string(valueInStrByte))
+				buf = append(buf, []byte(tagStr)...)
+			} else {
+				tagStr := fmt.Sprintf(",%s=", keyStr)
+				buf = append(buf, []byte(tagStr)...)
+				buf = append(buf, valueInStrByte...)
+			}
+		}
+		buf = append(buf, '\n')
+	}
+
+	buf = append(buf, []byte(fmt.Sprintf("1,%s,%s,", modifyHostname(string(p.MeasurementName())), truckName))...)
+	buf = append(buf, []byte(fmt.Sprintf("%d", p.Timestamp().UTC().UnixMilli()))...)
+
+	fieldValues := p.FieldValues()
+	for _, v := range fieldValues {
+		valueInStrByte, _ := IotdbFormat(v)
+		if valueInStrByte == nil {
+			buf = append(buf, ',')
+		} else {
+			buf = append(buf, ',')
+			buf = append(buf, valueInStrByte...)
+		}
+	}
+
+	buf = append(buf, '\n')
+	_, err := w.Write(buf)
+
+	return err
+}
+
+func (s *Serializer) SerializeDevOps(p *data.Point, w io.Writer) error {
 	buf := make([]byte, 0, defaultBufSize)
 	hostname := "unknown"
 	for i, v := range p.TagValues() {
-		if keyStr := string(p.TagKeys()[i]); keyStr == "hostname" {
+		if keyStr := string(p.TagKeys()[i]); keyStr == "name" {
 			hostname = v.(string)
 		}
 	}
@@ -105,7 +158,7 @@ func IotdbFormat(v interface{}) ([]byte, client.TSDataType) {
 	case string:
 		return []byte(v.(string)), client.TEXT
 	case nil:
-		return []byte(v.(string)), client.UNKNOWN
+		return nil, client.UNKNOWN
 	default:
 		panic(fmt.Sprintf("unknown field type for %#v", v))
 	}
