@@ -140,39 +140,82 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 		return metricCount, rowCount
 	}
 
-	for device, values := range batch.m {
-		db := strings.Split(device, ".")[0]
+	for dbTruckName, values := range batch.m {
+		segments := strings.Split(dbTruckName, ".")
+		db := segments[0]
+		truckName := segments[1]
 		dataTypes := iotdb.GlobalDataTypeMap[db]
 
-		fullDevice := "root." + device
 		var tablet *client.Tablet
-		tablet, exist := p.tabletsMap[fullDevice]
-		if !exist {
-			tablet, err := client.NewTablet(fullDevice, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
-			p.tabletsMap[fullDevice] = tablet
-			if err != nil {
-				fatal("build tablet error: %s", err)
+		fullTruckPath, truckFullPathExist := iotdb.GlobalTruckNameWithPath[truckName]
+		if truckFullPathExist {
+			_, tabletExist := p.tabletsMap[fullTruckPath]
+
+			if !tabletExist {
+				tablet, err := client.NewTablet(fullTruckPath, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
+				p.tabletsMap[fullTruckPath] = tablet
+				if err != nil {
+					fatal("build tablet error: %s", err)
+				}
 			}
 		}
-		tablet = p.tabletsMap[fullDevice]
+
+		// tablet = p.tabletsMap[fullTruckPath]
 
 		for _, value := range values {
 			splits := strings.Split(value, ",")
+
 			if splits[0] == "tag" {
 				if !p.storeTags {
 					continue
 				}
+
 				kvString := splits[1]
+				tmpTruckFullPath := ""
+				attribute := ""
 				for i, kv := range splits {
-					if i > 1 {
-						kvString = kvString + "," + kv
+					if i == 0 || i == 1 {
+						continue
 					}
+
+					arrays := strings.Split(kv, "=")
+					if arrays[0] == iotdb.Fleet || arrays[0] == iotdb.Model || arrays[0] == iotdb.Driver {
+						tmpTruckFullPath += "." + arrays[1]
+					} else if arrays[0] == iotdb.NominalFuelConsumption || arrays[0] == iotdb.DeviceVersion ||
+						arrays[0] == iotdb.LoadCapacity || arrays[0] == iotdb.FuelCapacity {
+						attribute += kvString
+					}
+
+					kvString = kvString + "," + kv
 				}
-				sql := fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(_tags INT32 tags(%s)) ", fullDevice, kvString)
-				_, err := p.session.ExecuteStatement(sql)
+
+				tmpTruckFullPath = "root." + tmpTruckFullPath
+				iotdb.GlobalTruckNameWithPath[truckName] = tmpTruckFullPath
+
+				// TODO add template impl
+				seriesCreateSql := ""
+				if db == iotdb.Readings {
+					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(latitude DOUBLE, longitude DOUBLE, elevation INT32,"+
+						"velocity INT32, heading INT32, grade INT32, fuel_consumption INT32, "+
+						"_attributes INT32 attribute(%s)) ",
+						tmpTruckFullPath, attribute)
+				} else {
+					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(fuel_state DOUBLE, current_load INT32, status INT32,"+
+						"_attributes INT32 attribute(%s)) ",
+						tmpTruckFullPath, attribute)
+				}
+
+				// attrCreatedSql := fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(_tags INT32 attribute(%s)) ", tmpTruckFullPath, attribute)
+
+				_, err := p.session.ExecuteStatement(seriesCreateSql)
 				if err != nil {
 					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
 				}
+
+				//_, err = p.session.ExecuteStatement(attrCreatedSql)
+				//if err != nil {
+				//	fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
+				//}
 				continue
 			}
 

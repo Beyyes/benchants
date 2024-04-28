@@ -56,7 +56,7 @@ func (d *fileDataSource) NextItem() data.LoadedPoint {
 				db:        lineParts[1],
 				deviceID:  lineParts[1] + "." + lineParts[2],
 				values:    lineParts[3],
-				fieldsCnt: len(iotdb.GlobalDataTypeMap[lineParts[1]]),
+				fieldsCnt: len(iotdb.GlobalIoTDataTypeMap[lineParts[1]]),
 			})
 	}
 }
