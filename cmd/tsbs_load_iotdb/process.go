@@ -44,6 +44,38 @@ func (p *processor) Init(numWorker int, doLoad, hashWorkers bool) {
 			errMsg = errMsg + fmt.Sprintf("timeout setting: %d ms\n", timeoutInMs)
 			fatal(errMsg)
 		}
+
+		sql := "create device template r1 aligned (latitude DOUBLE, longitude DOUBLE, elevation INT32, velocity INT32, heading INT32, grade INT32, fuel_consumption DOUBLE);"
+		_, err := p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement create device template r1 error: %v", err)
+		}
+		sql = "create database root.readings;"
+		_, err = p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement create database root.readings error: %v", err)
+		}
+		sql = "set DEVICE TEMPLATE r1 to root.readings;"
+		_, err = p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement set DEVICE TEMPLATE r1 error: %v", err)
+		}
+
+		sql = "create device template d1 aligned (fuel_state DOUBLE, current_load INT32, status INT32);"
+		_, err = p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement create device template r1 error: %v", err)
+		}
+		sql = "create database root.diagnostics;"
+		_, err = p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement create database root.diagnostics error: %v", err)
+		}
+		sql = "set DEVICE TEMPLATE r1 to root.diagnostics;"
+		_, err = p.session.ExecuteStatement(sql)
+		if err != nil {
+			fatal("ExecuteStatement set DEVICE TEMPLATE d1 error: %v", err)
+		}
 	}
 }
 
@@ -205,17 +237,18 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 				// TODO add template impl
 				seriesCreateSql := ""
 				if db == iotdb.Readings {
-					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(latitude DOUBLE, longitude DOUBLE,"+
-						" elevation INT32, velocity INT32, heading INT32, grade INT32, fuel_consumption DOUBLE, "+
-						"_attributes INT32 attributes(%s)) ",
-						tmpFullTruckPath, attribute)
+					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE r1 on %s) ", tmpFullTruckPath)
 				} else {
-					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s("+
-						"fuel_state DOUBLE, current_load INT32, status INT32, _attributes INT32 attributes(%s)) ",
-						tmpFullTruckPath, attribute)
+					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE d1 on %s) ", tmpFullTruckPath)
 				}
 
 				_, err = p.session.ExecuteStatement(seriesCreateSql)
+				if err != nil {
+					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
+				}
+
+				sql := fmt.Sprintf("CREATE TIMESERIES root.attr.%s._attributes INT32 attributes(%s)", truckName, attribute)
+				_, err = p.session.ExecuteStatement(sql)
 				if err != nil {
 					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
 				}
