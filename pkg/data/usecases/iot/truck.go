@@ -30,19 +30,19 @@ var (
 
 	modelChoices = []model{
 		{
-			Name:            "F-150",
+			Name:            "F_150",
 			LoadCapacity:    2000,
 			FuelCapacity:    200,
 			FuelConsumption: 15,
 		},
 		{
-			Name:            "G-2000",
+			Name:            "G_2000",
 			LoadCapacity:    5000,
 			FuelCapacity:    300,
 			FuelConsumption: 19,
 		},
 		{
-			Name:            "H-2",
+			Name:            "H_2",
 			LoadCapacity:    1500,
 			FuelCapacity:    150,
 			FuelConsumption: 12,
@@ -50,10 +50,10 @@ var (
 	}
 
 	deviceVersionChoices = []string{
-		"v1.0",
-		"v1.5",
-		"v2.0",
-		"v2.3",
+		"v10",
+		"v15",
+		"v20",
+		"v23",
 	}
 
 	// FleetChoices contains all the fleet name values for the IoT use case

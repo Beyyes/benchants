@@ -4,17 +4,17 @@ import "math/rand"
 
 var (
 	// Batch chances.
-	bMissingChance        = 0.01
+	bMissingChance        = 0.0
 	bOutOfOrderChance     = 0.05
 	bInsertPreviousChance = 0.5
 
 	// Entry chances.
-	eMissingChance        = 0.1
+	eMissingChance        = 0.0
 	eOutOfOrderChance     = 0.3
 	eInsertPreviousChance = 0.5
 
 	// Zero values.
-	zeroTagChance   = 0.01
+	zeroTagChance   = 0.0
 	zeroFieldChance = 0.1
 )
 

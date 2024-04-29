@@ -6,8 +6,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/benchant/tsbs/internal/utils"
 	"github.com/benchant/tsbs/load"
 	"github.com/benchant/tsbs/pkg/targets"
@@ -15,6 +13,7 @@ import (
 	"github.com/benchant/tsbs/pkg/targets/initializers"
 	"github.com/blagojts/viper"
 	"github.com/spf13/pflag"
+	"log"
 
 	"github.com/apache/iotdb-client-go/client"
 )
@@ -106,6 +105,5 @@ func init() {
 
 func main() {
 	benchmark := newBenchmark(clientConfig, loaderConfig)
-
 	loader.RunBenchmark(benchmark)
 }

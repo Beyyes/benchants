@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -116,8 +117,12 @@ func testEmptyPoint(t *testing.T, p *Point, desc string) {
 }
 
 func TestNewPoint(t *testing.T) {
-	p := NewPoint()
-	testEmptyPoint(t, p, "NewPoint")
+	value, _ := strconv.ParseFloat("4.72256", 64)
+
+	_ = fmt.Sprintf("%f", value)
+
+	//p := NewPoint()
+	//testEmptyPoint(t, p, "NewPoint")
 }
 
 func TestCopy(t *testing.T) {

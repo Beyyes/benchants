@@ -147,20 +147,21 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 		dataTypes := iotdb.GlobalDataTypeMap[db]
 
 		var tablet *client.Tablet
-		fullTruckPath, truckFullPathExist := iotdb.GlobalTruckNameWithPath[truckName]
-		if truckFullPathExist {
-			_, tabletExist := p.tabletsMap[fullTruckPath]
+		var err error
+		var exist bool
 
-			if !tabletExist {
-				tablet, err := client.NewTablet(fullTruckPath, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
-				p.tabletsMap[fullTruckPath] = tablet
+		fullTruckPath, fullTruckPathExist := iotdb.GlobalTruckNameWithPath[dbTruckName]
+		if fullTruckPathExist {
+			tablet, exist = p.tabletsMap[fullTruckPath]
+
+			if !exist {
+				tablet, err = client.NewTablet(fullTruckPath, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
 				if err != nil {
 					fatal("build tablet error: %s", err)
 				}
+				p.tabletsMap[fullTruckPath] = tablet
 			}
 		}
-
-		// tablet = p.tabletsMap[fullTruckPath]
 
 		for _, value := range values {
 			splits := strings.Split(value, ",")
@@ -170,8 +171,8 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 					continue
 				}
 
-				kvString := splits[1]
-				tmpTruckFullPath := ""
+				// kvString := splits[1]
+				tmpFullTruckPath := ""
 				attribute := ""
 				for i, kv := range splits {
 					if i == 0 || i == 1 {
@@ -180,42 +181,45 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 
 					arrays := strings.Split(kv, "=")
 					if arrays[0] == iotdb.Fleet || arrays[0] == iotdb.Model || arrays[0] == iotdb.Driver {
-						tmpTruckFullPath += "." + arrays[1]
+						tmpFullTruckPath += "." + arrays[1]
 					} else if arrays[0] == iotdb.NominalFuelConsumption || arrays[0] == iotdb.DeviceVersion ||
 						arrays[0] == iotdb.LoadCapacity || arrays[0] == iotdb.FuelCapacity {
-						attribute += kvString
+						if attribute == "" {
+							attribute = kv
+						} else {
+							attribute += "," + kv
+						}
 					}
 
-					kvString = kvString + "," + kv
+					// kvString = kvString + "," + kv
 				}
 
-				tmpTruckFullPath = "root." + tmpTruckFullPath
-				iotdb.GlobalTruckNameWithPath[truckName] = tmpTruckFullPath
+				tmpFullTruckPath = "root." + db + tmpFullTruckPath + "." + truckName
+				iotdb.GlobalTruckNameWithPath[dbTruckName] = tmpFullTruckPath
+				tablet, err = client.NewTablet(tmpFullTruckPath, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
+				p.tabletsMap[tmpFullTruckPath] = tablet
+				if err != nil {
+					fatal("build tablet error: %s", err)
+				}
 
 				// TODO add template impl
 				seriesCreateSql := ""
 				if db == iotdb.Readings {
-					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(latitude DOUBLE, longitude DOUBLE, elevation INT32,"+
-						"velocity INT32, heading INT32, grade INT32, fuel_consumption INT32, "+
-						"_attributes INT32 attribute(%s)) ",
-						tmpTruckFullPath, attribute)
+					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(latitude DOUBLE, longitude DOUBLE,"+
+						" elevation INT32, velocity INT32, heading INT32, grade INT32, fuel_consumption DOUBLE, "+
+						"_attributes INT32 attributes(%s)) ",
+						tmpFullTruckPath, attribute)
 				} else {
-					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(fuel_state DOUBLE, current_load INT32, status INT32,"+
-						"_attributes INT32 attribute(%s)) ",
-						tmpTruckFullPath, attribute)
+					seriesCreateSql = fmt.Sprintf("CREATE ALIGNED TIMESERIES %s("+
+						"fuel_state DOUBLE, current_load INT32, status INT32, _attributes INT32 attributes(%s)) ",
+						tmpFullTruckPath, attribute)
 				}
 
-				// attrCreatedSql := fmt.Sprintf("CREATE ALIGNED TIMESERIES %s(_tags INT32 attribute(%s)) ", tmpTruckFullPath, attribute)
-
-				_, err := p.session.ExecuteStatement(seriesCreateSql)
+				_, err = p.session.ExecuteStatement(seriesCreateSql)
 				if err != nil {
 					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
 				}
 
-				//_, err = p.session.ExecuteStatement(attrCreatedSql)
-				//if err != nil {
-				//	fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
-				//}
 				continue
 			}
 
@@ -227,6 +231,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 			tablet.SetTimestamp(timestamp, tablet.RowSize)
 
 			for cIdx, v := range splits[1:] {
+				// TODO perfect deal with null value
 				nv, err := parseDataToInterface(dataTypes[cIdx], v)
 				if err != nil {
 					fatal("Parse data value error: %d, %s", v, err)
@@ -270,12 +275,18 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 func parseDataToInterface(datatype client.TSDataType, str string) (interface{}, error) {
 	switch datatype {
 	case client.INT32:
+		if str == "" {
+			return interface{}(int32(0)), nil
+		}
 		value, err := strconv.ParseInt(str, 10, 32)
 		return interface{}(int32(value)), err
 	case client.INT64:
 		value, err := strconv.ParseInt(str, 10, 64)
 		return interface{}(value), err
 	case client.DOUBLE:
+		if str == "" {
+			return interface{}(0.0), nil
+		}
 		value, err := strconv.ParseFloat(str, 64)
 		return interface{}(value), err
 	default:

@@ -11,18 +11,18 @@ var (
 	GlobalTruckNameWithPath  = make(map[string]string)
 
 	// path
-	Fleet  = "'fleet'"
-	Model  = "'model'"
-	Name   = "'name'"
-	Driver = "'driver'"
+	Fleet  = "fleet"
+	Model  = "model"
+	Name   = "name"
+	Driver = "driver"
 
 	// attr
-	NominalFuelConsumption = "'nominal_fuel_consumption'"
-	DeviceVersion          = "'device_version'"
-	LoadCapacity           = "'load_capacity'"
-	FuelCapacity           = "'fuel_capacity'"
+	NominalFuelConsumption = "nominal_fuel_consumption"
+	DeviceVersion          = "device_version"
+	LoadCapacity           = "load_capacity"
+	FuelCapacity           = "fuel_capacity"
 
-	Readings        = "Readings"
+	Readings        = "readings"
 	latitude        = "latitude"
 	longitude       = "longitude"
 	elevation       = "elevation"
@@ -41,7 +41,7 @@ func init() {
 	GlobalMeasurementMap[Readings] = append(GlobalMeasurementMap[Readings], latitude, longitude, elevation,
 		velocity, heading, grade, fuelConsumption)
 	GlobalDataTypeMap[Readings] = append(GlobalDataTypeMap[Readings], client.DOUBLE, client.DOUBLE,
-		client.INT32, client.INT32, client.INT32, client.INT32, client.INT32)
+		client.INT32, client.INT32, client.INT32, client.INT32, client.DOUBLE)
 	GlobalTabletSchemaMap[Readings] = append(GlobalTabletSchemaMap[Readings],
 		&client.MeasurementSchema{Measurement: latitude, DataType: client.DOUBLE},
 		&client.MeasurementSchema{Measurement: longitude, DataType: client.DOUBLE},
@@ -49,7 +49,7 @@ func init() {
 		&client.MeasurementSchema{Measurement: velocity, DataType: client.INT32},
 		&client.MeasurementSchema{Measurement: heading, DataType: client.INT32},
 		&client.MeasurementSchema{Measurement: grade, DataType: client.INT32},
-		&client.MeasurementSchema{Measurement: fuelConsumption, DataType: client.INT32})
+		&client.MeasurementSchema{Measurement: fuelConsumption, DataType: client.DOUBLE})
 
 	GlobalMeasurementMap[diagnostics] = append(GlobalMeasurementMap[diagnostics], fuelState, currentLoad, status)
 	GlobalDataTypeMap[diagnostics] = append(GlobalDataTypeMap[diagnostics], client.DOUBLE, client.INT32, client.INT32)

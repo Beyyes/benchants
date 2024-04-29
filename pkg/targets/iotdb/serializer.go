@@ -42,7 +42,7 @@ func (s *Serializer) Serialize(p *data.Point, w io.Writer) error {
 			keyStr := p.TagKeys()[i]
 			valueInStrByte, datatype := IotdbFormat(v)
 			if datatype == client.TEXT {
-				tagStr := fmt.Sprintf(",'%s'='%s'", keyStr, string(valueInStrByte))
+				tagStr := fmt.Sprintf(",%s=%s", keyStr, string(valueInStrByte))
 				buf = append(buf, []byte(tagStr)...)
 			} else {
 				tagStr := fmt.Sprintf(",%s=", keyStr)
@@ -90,7 +90,7 @@ func (s *Serializer) SerializeDevOps(p *data.Point, w io.Writer) error {
 			keyStr := p.TagKeys()[i]
 			valueInStrByte, datatype := IotdbFormat(v)
 			if datatype == client.TEXT {
-				tagStr := fmt.Sprintf(",'%s'='%s'", keyStr, string(valueInStrByte))
+				tagStr := fmt.Sprintf(",%s=%s", keyStr, string(valueInStrByte))
 				buf = append(buf, []byte(tagStr)...)
 			} else {
 				tagStr := fmt.Sprintf(",%s=", keyStr)
