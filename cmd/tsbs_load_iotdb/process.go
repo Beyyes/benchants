@@ -64,14 +64,14 @@ func (p *processor) Init(numWorker int, doLoad, hashWorkers bool) {
 		sql = "create device template d1 aligned (fuel_state DOUBLE, current_load INT32, status INT32);"
 		_, err = p.session.ExecuteStatement(sql)
 		if err != nil {
-			fatal("ExecuteStatement create device template r1 error: %v", err)
+			fatal("ExecuteStatement create device template d1 error: %v", err)
 		}
 		sql = "create database root.diagnostics;"
 		_, err = p.session.ExecuteStatement(sql)
 		if err != nil {
 			fatal("ExecuteStatement create database root.diagnostics error: %v", err)
 		}
-		sql = "set DEVICE TEMPLATE r1 to root.diagnostics;"
+		sql = "set DEVICE TEMPLATE d1 to root.diagnostics;"
 		_, err = p.session.ExecuteStatement(sql)
 		if err != nil {
 			fatal("ExecuteStatement set DEVICE TEMPLATE d1 error: %v", err)
@@ -241,12 +241,11 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 					fatal("build tablet error: %s", err)
 				}
 
-				// TODO add template impl
 				seriesCreateSql := ""
 				if db == iotdb.Readings {
-					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE r1 on %s) ", tmpFullTruckPath)
+					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE r1 on %s;", tmpFullTruckPath)
 				} else {
-					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE d1 on %s) ", tmpFullTruckPath)
+					seriesCreateSql = fmt.Sprintf("create timeseries using DEVICE TEMPLATE d1 on %s;", tmpFullTruckPath)
 				}
 
 				_, err = p.session.ExecuteStatement(seriesCreateSql)
@@ -254,7 +253,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
 				}
 
-				sql := fmt.Sprintf("CREATE TIMESERIES root.attr.%s._attributes INT32 attributes(%s)", truckName, attribute)
+				sql := fmt.Sprintf("CREATE TIMESERIES root.attributes.%s.attr INT32 attributes(%s)", truckName, attribute)
 				_, err = p.session.ExecuteStatement(sql)
 				if err != nil {
 					fatal("ExecuteStatement CREATE timeseries with tags error: %v", err)
