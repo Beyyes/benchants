@@ -206,14 +206,21 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 				// kvString := splits[1]
 				tmpFullTruckPath := ""
 				attribute := ""
+				fleet := ""
+				model := ""
+				driver := ""
 				for i, kv := range splits {
 					if i == 0 || i == 1 {
 						continue
 					}
 
 					arrays := strings.Split(kv, "=")
-					if arrays[0] == iotdb.Fleet || arrays[0] == iotdb.Model || arrays[0] == iotdb.Driver {
-						tmpFullTruckPath += "." + arrays[1]
+					if arrays[0] == iotdb.Fleet {
+						fleet = arrays[1]
+					} else if arrays[0] == iotdb.Model {
+						model = arrays[1]
+					} else if arrays[0] == iotdb.Driver {
+						driver = arrays[1]
 					} else if arrays[0] == iotdb.NominalFuelConsumption || arrays[0] == iotdb.DeviceVersion ||
 						arrays[0] == iotdb.LoadCapacity || arrays[0] == iotdb.FuelCapacity {
 						if attribute == "" {
@@ -226,7 +233,7 @@ func (p *processor) ProcessBatch(b targets.Batch, doLoad bool) (metricCount, row
 					// kvString = kvString + "," + kv
 				}
 
-				tmpFullTruckPath = "root." + db + tmpFullTruckPath + "." + truckName
+				tmpFullTruckPath = "root." + db + "." + fleet + "." + model + "." + truckName + "." + driver
 				iotdb.GlobalTruckNameWithPath[dbTruckName] = tmpFullTruckPath
 				tablet, err = client.NewTablet(tmpFullTruckPath, iotdb.GlobalTabletSchemaMap[db], p.tabletSize)
 				p.tabletsMap[tmpFullTruckPath] = tablet
