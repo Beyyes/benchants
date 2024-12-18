@@ -140,8 +140,12 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 				}
 			}
 		} else {
+			aggregations := make([]common.TAggregationType, len(aggregatePaths))
+			for i := range aggregations {
+				aggregations[i] = common.TAggregationType_MAX_VALUE
+			}
 			dataSet, err = p.session.ExecuteAggregationQueryWithLegalNodes(aggregatePaths,
-				[]common.TAggregationType{common.TAggregationType_MAX_VALUE},
+				aggregations,
 				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &legalNodes)
 
 			if err != nil {
