@@ -18,11 +18,14 @@ import (
 // database option vars
 var (
 	clientConfig    client.Config
-	timeoutInMs     int64 // 0 for no timeout
-	usingGroupByApi bool  // if using group by api when executing query
-	singleDatabase  bool  // if using single database, e.g. only one database: root.db. root.db.cpu, root.db.mem belongs to this databse
+	timeoutInMs     int64 = 0 // 0 for no timeout
+	usingGroupByApi bool      // if using group by api when executing query
+	singleDatabase  bool      // if using single database, e.g. only one database: root.db. root.db.cpu, root.db.mem belongs to this databse
 	sessionPoolSize int
 	aligned         bool
+	queryDatabase         = "root.cpu"
+	interval        int64 = 60000
+	legalNodes            = true
 )
 
 // Global vars:
@@ -125,28 +128,24 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	iotdbQ := q.(*query.IoTDB)
 	sql := string(iotdbQ.SqlQuery)
 	aggregatePaths := iotdbQ.AggregatePaths
-	var interval int64 = 60000
 	var startTimeInMills = iotdbQ.StartTime
 	var endTimeInMills = iotdbQ.EndTime
 	var dataSet *client.SessionDataSet
-	var legalNodes = true
 	var err error
 
 	start := time.Now().UnixNano()
 	if startTimeInMills > 0 {
 		if usingGroupByApi {
-			splits := strings.Split(aggregatePaths[0], ".")
-			db := fmt.Sprintf("%s.%s", splits[0], splits[1])
-			device := strings.Join(splits[:len(splits)-1], ".")
-			measurement := splits[len(splits)-1]
-			dataSet, err = p.session.ExecuteGroupByQuery(&db, device, measurement,
+			idx := strings.LastIndex(aggregatePaths[0], ".")
+			device := aggregatePaths[0][:idx]
+			measurement := aggregatePaths[0][idx+1:]
+			dataSet, err = p.session.ExecuteGroupByQuery(&queryDatabase, device, measurement,
 				common.TAggregationType_MAX_VALUE, 1,
 				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
 
 			if err != nil {
-				fmt.Printf("ExecuteGroupByQueryIntervalQuery meets error, "+
-					"db: %s, device: %s, measurement: %s, startTime: %d, endTime: %d\n",
-					db, device, measurement, startTimeInMills, endTimeInMills)
+				fmt.Printf("ExecuteGroupByQuery meets error, db: %s, device: %s, measurement: %s, startTime: %d, endTime: %d\n",
+					queryDatabase, device, measurement, startTimeInMills, endTimeInMills)
 				return nil, err
 			}
 
