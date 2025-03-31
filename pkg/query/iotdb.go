@@ -8,14 +8,14 @@ import (
 // IoTDB encodes a IoTDB request. This will be serialized for use
 // by the tsbs_run_queries_iotdb program.
 type IoTDB struct {
+	id uint64
+
 	HumanLabel       []byte
 	HumanDescription []byte
-	id               uint64
-
-	AggregatePaths []string
-	StartTime      int64
-	EndTime        int64
-	SqlQuery       []byte
+	AggregatePaths   []string
+	StartTime        int64
+	EndTime          int64
+	SqlQuery         []byte
 }
 
 // IoTDBPool is a sync.Pool of IoTDB Query types

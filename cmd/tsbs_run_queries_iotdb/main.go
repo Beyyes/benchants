@@ -21,11 +21,14 @@ var (
 	timeoutInMs     int64 // 0 for no timeout
 	usingGroupByApi bool  // if using group by api when executing query
 	singleDatabase  bool  // if using single database, e.g. only one database: root.db. root.db.cpu, root.db.mem belongs to this databse
+	sessionPoolSize int
+	aligned         bool
 )
 
 // Global vars:
 var (
-	runner *query.BenchmarkRunner
+	runner      *query.BenchmarkRunner
+	sessionPool client.SessionPool
 )
 
 // Parse args:
@@ -39,6 +42,8 @@ func init() {
 	pflag.String("password", "root", "The password for user connecting to IoTDB")
 	pflag.Bool("use-groupby", false, "Whether to use group by api")
 	pflag.Bool("single-database", false, "Whether to use single database")
+	pflag.Bool("aligned", true, "Whether to use aligned timeseries")
+	pflag.Uint("session-pool-size", 0, "Session pool size")
 
 	pflag.Parse()
 
@@ -59,6 +64,8 @@ func init() {
 	workers := viper.GetUint("workers")
 	usingGroupByApi = viper.GetBool("use-groupby")
 	singleDatabase = viper.GetBool("single-database")
+	sessionPoolSize = viper.GetInt("session-pool-size")
+	aligned = viper.GetBool("aligned")
 	timeoutInMs = 0
 
 	log.Printf("tsbs_run_queries_iotdb target: %s:%s. Loading with %d workers.\n", host, port, workers)
@@ -71,6 +78,16 @@ func init() {
 		Port:     port,
 		UserName: user,
 		Password: password,
+	}
+
+	if sessionPoolSize > 0 {
+		poolConfig := &client.PoolConfig{
+			Host:     host,
+			Port:     port,
+			UserName: user,
+			Password: password,
+		}
+		sessionPool = client.NewSessionPool(poolConfig, sessionPoolSize, 60000, 60000, false)
 	}
 
 	runner = query.NewBenchmarkRunner(config)
@@ -96,9 +113,11 @@ func (p *processor) Init(workerNumber int) {
 		errMsg = errMsg + fmt.Sprintf("timeout setting: %d ms", timeoutInMs)
 		log.Fatal(errMsg)
 	}
-	_, err := p.session.ExecuteStatement("flush")
-	if err != nil {
-		log.Fatal(fmt.Sprintf("flush meets error: %v\n", err))
+	if workerNumber == 0 {
+		_, err := p.session.ExecuteStatement("flush")
+		if err != nil {
+			log.Fatal(fmt.Sprintf("flush meets error: %v\n", err))
+		}
 	}
 }
 
@@ -117,12 +136,12 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	if startTimeInMills > 0 {
 		if usingGroupByApi {
 			splits := strings.Split(aggregatePaths[0], ".")
-			db := splits[0] + "." + splits[1]
+			db := fmt.Sprintf("%s.%s", splits[0], splits[1])
 			device := strings.Join(splits[:len(splits)-1], ".")
 			measurement := splits[len(splits)-1]
-			dataSet, err = p.session.ExecuteGroupByQueryIntervalQuery(&db, device, measurement,
+			dataSet, err = p.session.ExecuteGroupByQuery(&db, device, measurement,
 				common.TAggregationType_MAX_VALUE, 1,
-				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs)
+				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
 
 			if err != nil {
 				fmt.Printf("ExecuteGroupByQueryIntervalQuery meets error, "+
