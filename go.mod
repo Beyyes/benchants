@@ -7,7 +7,7 @@ require (
 	github.com/SiriDB/go-siridb-connector v0.0.0-20190110105621-86b34c44c921
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883
-	github.com/apache/iotdb-client-go v1.3.3-0.20250331034150-574816a08f8c
+	github.com/apache/iotdb-client-go v1.3.3-0.20250331101437-b7a8c0711692
 	github.com/aws/aws-sdk-go v1.35.13
 	github.com/blagojts/viper v1.6.3-0.20200313094124-068f44cf5e69
 	github.com/go-ole/go-ole v1.2.4 // indirect
