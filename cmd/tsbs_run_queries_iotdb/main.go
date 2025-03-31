@@ -133,7 +133,7 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	var dataSet *client.SessionDataSet
 	var err error
 
-	start := time.Now().UnixNano()
+	start := time.Now()
 	if startTimeInMills > 0 {
 		if usingGroupByApi {
 			idx := strings.LastIndex(aggregatePaths[0], ".")
@@ -186,13 +186,11 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 		return nil, err
 	}
 
-	took := time.Now().UnixNano() - start
-
 	// defer dataSet.Close()
 
-	lag := float64(took) / float64(time.Millisecond) // in milliseconds
+	took := float64(time.Since(start).Nanoseconds()) / 1e6
 	stat := query.GetStat()
-	stat.Init(q.HumanLabelName(), lag)
+	stat.Init(q.HumanLabelName(), took)
 	return []*query.Stat{stat}, err
 }
 
