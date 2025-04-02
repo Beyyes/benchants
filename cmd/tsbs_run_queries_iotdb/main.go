@@ -109,17 +109,20 @@ type processor struct {
 func newProcessor() query.Processor { return &processor{} }
 
 func (p *processor) Init(workerNumber int) {
-	p.session = client.NewSession(&clientConfig)
 	p.printResponses = runner.DoPrintResponses()
-	if err := p.session.Open(false, int(timeoutInMs)); err != nil {
-		errMsg := fmt.Sprintf("query processor init error, session is not open: %v\n", err)
-		errMsg = errMsg + fmt.Sprintf("timeout setting: %d ms", timeoutInMs)
-		log.Fatal(errMsg)
-	}
-	if workerNumber == 0 {
-		_, err := p.session.ExecuteStatement("flush")
-		if err != nil {
-			log.Fatal(fmt.Sprintf("flush meets error: %v\n", err))
+
+	if sessionPoolSize <= 0 {
+		p.session = client.NewSession(&clientConfig)
+		if err := p.session.Open(false, int(timeoutInMs)); err != nil {
+			errMsg := fmt.Sprintf("query processor init error, session is not open: %v\n", err)
+			errMsg = errMsg + fmt.Sprintf("timeout setting: %d ms", timeoutInMs)
+			log.Fatal(errMsg)
+		}
+		if workerNumber == 0 {
+			_, err := p.session.ExecuteStatement("flush")
+			if err != nil {
+				log.Fatal(fmt.Sprintf("flush meets error: %v\n", err))
+			}
 		}
 	}
 }
@@ -139,9 +142,21 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 			idx := strings.LastIndex(aggregatePaths[0], ".")
 			device := aggregatePaths[0][:idx]
 			measurement := aggregatePaths[0][idx+1:]
-			dataSet, err = p.session.ExecuteGroupByQuery(&queryDatabase, device, measurement,
-				common.TAggregationType_MAX_VALUE, 1,
-				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
+			if sessionPoolSize > 0 {
+				session, err := sessionPool.GetSession()
+				if err == nil {
+					dataSet, err = session.ExecuteGroupByQuery(&queryDatabase, device, measurement,
+						common.TAggregationType_MAX_VALUE, 1,
+						&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
+				} else {
+					log.Printf("Get session meets error.\n")
+				}
+				sessionPool.PutBack(session)
+			} else {
+				dataSet, err = p.session.ExecuteGroupByQuery(&queryDatabase, device, measurement,
+					common.TAggregationType_MAX_VALUE, 1,
+					&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
+			}
 
 			if err != nil {
 				fmt.Printf("ExecuteGroupByQuery meets error, db: %s, device: %s, measurement: %s, startTime: %d, endTime: %d\n",
