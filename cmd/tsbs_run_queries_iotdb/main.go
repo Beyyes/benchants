@@ -133,9 +133,8 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 
 			if err == nil {
 				if p.printResponses {
-					sql = fmt.Sprintf("Response for ExecuteGroupByQueryIntervalQuery, "+
-						"db: %s, device: %s, measurement: %s, startTime: %d, endTime: %d",
-						db, device, measurement, startTimeInMills, endTimeInMills)
+					sql = fmt.Sprintf("select max_value(%s) from %s group by ([%d,%d), 60s)",
+						measurement, device, startTimeInMills, endTimeInMills)
 					printDataSet(sql, dataSet)
 				}
 			}
@@ -169,14 +168,9 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 		return nil, err
 	}
 
-	if err == nil {
-		if p.printResponses {
-			printDataSet(string(iotdbQ.SqlQuery), dataSet)
-		}
-	}
 	took := time.Now().UnixNano() - start
 
-	defer dataSet.Close()
+	// defer dataSet.Close()
 
 	lag := float64(took) / float64(time.Millisecond) // in milliseconds
 	stat := query.GetStat()
