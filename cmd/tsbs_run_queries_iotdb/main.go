@@ -21,6 +21,10 @@ var (
 	timeoutInMs     int64 // 0 for no timeout
 	usingGroupByApi bool  // if using group by api when executing query
 	singleDatabase  bool  // if using single database, e.g. only one database: root.db. root.db.cpu, root.db.mem belongs to this databse
+	aligned         bool
+	queryDatabase         = "root.cpu"
+	interval        int64 = 60000
+	legalNodes            = true
 )
 
 // Global vars:
@@ -39,6 +43,7 @@ func init() {
 	pflag.String("password", "root", "The password for user connecting to IoTDB")
 	pflag.Bool("use-groupby", false, "Whether to use group by api")
 	pflag.Bool("single-database", false, "Whether to use single database")
+	pflag.Bool("aligned", false, "Whether to use aligned timeseries")
 
 	pflag.Parse()
 
@@ -59,6 +64,7 @@ func init() {
 	workers := viper.GetUint("workers")
 	usingGroupByApi = viper.GetBool("use-groupby")
 	singleDatabase = viper.GetBool("single-database")
+	aligned = viper.GetBool("aligned")
 	timeoutInMs = 0
 
 	log.Printf("tsbs_run_queries_iotdb target: %s:%s. Loading with %d workers.\n", host, port, workers)
@@ -106,28 +112,25 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 	iotdbQ := q.(*query.IoTDB)
 	sql := string(iotdbQ.SqlQuery)
 	aggregatePaths := iotdbQ.AggregatePaths
-	var interval int64 = 60000
 	var startTimeInMills = iotdbQ.StartTime
 	var endTimeInMills = iotdbQ.EndTime
 	var dataSet *client.SessionDataSet
-	var legalNodes = true
 	var err error
 
-	start := time.Now().UnixNano()
+	start := time.Now()
 	if startTimeInMills > 0 {
 		if usingGroupByApi {
-			splits := strings.Split(aggregatePaths[0], ".")
-			db := splits[0] + "." + splits[1]
-			device := strings.Join(splits[:len(splits)-1], ".")
-			measurement := splits[len(splits)-1]
-			dataSet, err = p.session.ExecuteGroupByQueryIntervalQuery(&db, device, measurement,
+			idx := strings.LastIndex(aggregatePaths[0], ".")
+			device := aggregatePaths[0][:idx]
+			measurement := aggregatePaths[0][idx+1:]
+			dataSet, err = p.session.ExecuteGroupByQueryIntervalQuery(&queryDatabase, device, measurement,
 				common.TAggregationType_MAX_VALUE, 1,
-				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs)
+				&startTimeInMills, &endTimeInMills, &interval, &timeoutInMs, &aligned)
 
 			if err != nil {
 				fmt.Printf("ExecuteGroupByQueryIntervalQuery meets error, "+
 					"db: %s, device: %s, measurement: %s, startTime: %d, endTime: %d\n",
-					db, device, measurement, startTimeInMills, endTimeInMills)
+					queryDatabase, device, measurement, startTimeInMills, endTimeInMills)
 				return nil, err
 			}
 
@@ -168,13 +171,11 @@ func (p *processor) ProcessQuery(q query.Query, _ bool) ([]*query.Stat, error) {
 		return nil, err
 	}
 
-	took := time.Now().UnixNano() - start
-
 	// defer dataSet.Close()
 
-	lag := float64(took) / float64(time.Millisecond) // in milliseconds
+	took := float64(time.Since(start).Nanoseconds()) / 1e6
 	stat := query.GetStat()
-	stat.Init(q.HumanLabelName(), lag)
+	stat.Init(q.HumanLabelName(), took)
 	return []*query.Stat{stat}, err
 }
 
