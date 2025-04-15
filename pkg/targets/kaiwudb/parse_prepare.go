@@ -10,6 +10,8 @@ import (
 )
 
 const layout = "2006-01-02 15:04:05.000"
+const bucket_0 = "time_bucket(k_timestamp,"
+const bucket_1 = "'60s')"
 
 type ParsePrepare struct {
 	typ string
@@ -124,6 +126,13 @@ func HostRangeFast(qry string, debug bool) (string, []interface{}) {
 	}
 	arr[20] = ""
 	arr[21] = "$3"
+
+	arr[1] = bucket_0
+	arr[2] = bucket_1
+	arr[24] = bucket_0
+	arr[25] = bucket_1
+	arr[28] = bucket_0
+	arr[29] = bucket_1
 
 	var b strings.Builder
 	b.Grow(len(arr))
